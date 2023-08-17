@@ -1,5 +1,6 @@
 pub mod action;
 mod ansi;
+pub mod app;
 pub mod clipboard_wrapper;
 pub mod command;
 pub mod context;
