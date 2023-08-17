@@ -1,7 +1,7 @@
 pub mod action;
 mod ansi;
 pub mod clipboard_wrapper;
-pub mod config;
+pub mod command;
 pub mod context;
 pub mod error;
 pub mod event;

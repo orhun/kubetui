@@ -8,7 +8,7 @@ use std::{path::PathBuf, str::FromStr};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
-pub struct Config {
+pub struct Command {
     /// Window split mode
     #[arg(
         short,
@@ -67,7 +67,7 @@ pub struct Config {
     pub logging: bool,
 }
 
-impl Config {
+impl Command {
     pub fn split_mode(&self) -> Direction {
         match self.split_mode {
             Some(d) => match d {
@@ -153,8 +153,8 @@ impl FromStr for DirectionWrapper {
     }
 }
 
-pub fn configure() -> Config {
-    Config::parse()
+pub fn configure() -> Command {
+    Command::parse()
 
     // let cmd = Command::new("kubetui")
     //     .arg(
@@ -187,13 +187,13 @@ mod tests {
 
         #[test]
         fn possible_valuesの値であるhを設定したときhorizontalを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-s", "h"]).unwrap();
+            let parse = Command::try_parse_from(["kubetui", "-s", "h"]).unwrap();
             assert_eq!(parse.split_mode(), Direction::Horizontal)
         }
 
         #[test]
         fn possible_valuesの値にない値を設定したときerrを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-s", "hoge"]);
+            let parse = Command::try_parse_from(["kubetui", "-s", "hoge"]);
             assert_eq!(parse.unwrap_err().kind(), ErrorKind::InvalidValue)
         }
     }
@@ -207,13 +207,13 @@ mod tests {
 
         #[test]
         fn 値を設定しないとエラーを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-n"]);
+            let parse = Command::try_parse_from(["kubetui", "-n"]);
             assert_eq!(parse.unwrap_err().kind(), ErrorKind::InvalidValue)
         }
 
         #[test]
         fn namespaceを1つ指定したときvecを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-n", "hoge"]).unwrap();
+            let parse = Command::try_parse_from(["kubetui", "-n", "hoge"]).unwrap();
             assert_eq!(parse.namespaces, Some(vec!["hoge".to_string()]))
         }
 
@@ -222,7 +222,7 @@ mod tests {
         #[case::delimiter(&["kubetui", "-n", "foo,bar,zoo"])]
         #[case::mixed(&["kubetui", "-n", "foo,bar", "-n", "zoo"])]
         fn namespaceを複数指定したときvecを返す(#[case] iter: &[&str]) {
-            let parse = Config::try_parse_from(iter).unwrap();
+            let parse = Command::try_parse_from(iter).unwrap();
             assert_eq!(
                 parse.namespaces,
                 Some(vec![
@@ -235,7 +235,7 @@ mod tests {
 
         #[test]
         fn all_namespacesと併用するとエラーを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-A", "-n", "hoge"]);
+            let parse = Command::try_parse_from(["kubetui", "-A", "-n", "hoge"]);
             assert_eq!(parse.unwrap_err().kind(), ErrorKind::ArgumentConflict)
         }
     }
@@ -248,7 +248,7 @@ mod tests {
 
         #[test]
         fn equalがない構文のときエラーになる() {
-            let parse = Config::try_parse_from(["kubetui", "--all-namespaces", "true"]);
+            let parse = Command::try_parse_from(["kubetui", "--all-namespaces", "true"]);
             assert_eq!(parse.unwrap_err().kind(), ErrorKind::UnknownArgument)
         }
 
@@ -256,20 +256,21 @@ mod tests {
         #[case::is_true(AllNamespaces::True)]
         #[case::is_false(AllNamespaces::False)]
         fn 設定した値になる(#[case] value: AllNamespaces) {
-            let parse = Config::try_parse_from(["kubetui", &format!("--all-namespaces={}", value)])
-                .unwrap();
+            let parse =
+                Command::try_parse_from(["kubetui", &format!("--all-namespaces={}", value)])
+                    .unwrap();
             assert_eq!(parse.all_namespaces, value)
         }
 
         #[test]
         fn 値が設定されていないときtrueを設定する() {
-            let parse = Config::try_parse_from(["kubetui", "-A"]).unwrap();
+            let parse = Command::try_parse_from(["kubetui", "-A"]).unwrap();
             assert_eq!(parse.all_namespaces, AllNamespaces::True)
         }
 
         #[test]
         fn namespaceと併用するとエラーを返す() {
-            let parse = Config::try_parse_from(["kubetui", "-A", "-n", "hoge"]);
+            let parse = Command::try_parse_from(["kubetui", "-A", "-n", "hoge"]);
             assert_eq!(parse.unwrap_err().kind(), ErrorKind::ArgumentConflict)
         }
     }
