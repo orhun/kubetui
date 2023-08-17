@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use kubetui::{app::App, disable_raw_mode, enable_raw_mode, signal::signal_handler};
+use kubetui::{app::App, disable_raw_mode, signal::signal_handler};
 
 use std::panic;
 
@@ -19,11 +19,7 @@ fn main() -> Result<()> {
 
     let app = App::init()?;
 
-    enable_raw_mode!();
+    app.run()?;
 
-    let result = app.run();
-
-    disable_raw_mode!();
-
-    result
+    Ok(())
 }

@@ -67,6 +67,8 @@ impl App {
     }
 
     pub fn run(self) -> Result<()> {
+        enable_raw_mode!();
+
         let split_mode = self.command.split_mode();
         let kube_worker_config = self.command.kube_worker_config();
 
@@ -160,6 +162,8 @@ impl App {
                 };
             }
         }
+
+        disable_raw_mode!();
 
         Ok(())
     }
