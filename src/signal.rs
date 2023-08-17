@@ -6,7 +6,7 @@ use crossterm::{
 };
 use ctrlc;
 
-pub fn signal_handler() {
+pub fn setup_signal_handler() {
     ctrlc::set_handler(|| {
         execute!(
             std::io::stdout(),

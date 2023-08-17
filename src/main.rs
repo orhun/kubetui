@@ -1,11 +1,13 @@
 use anyhow::Result;
 
-use kubetui::{app::App, disable_raw_mode, signal::signal_handler};
+use kubetui::{app::App, disable_raw_mode, signal::setup_signal_handler};
 
 use std::panic;
 
+fn setup_panic_hook() {}
+
 fn main() -> Result<()> {
-    signal_handler();
+    setup_signal_handler();
 
     let default_hook = panic::take_hook();
 
