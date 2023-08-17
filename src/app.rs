@@ -8,7 +8,6 @@ use crate::{
     window::WindowInit,
 };
 use anyhow::Result;
-use clap::Parser;
 use crossbeam::channel::{bounded, Receiver, Sender};
 use ratatui::{prelude::CrosstermBackend, Terminal, TerminalOptions, Viewport};
 use std::{
@@ -57,7 +56,7 @@ pub struct App {
 
 impl App {
     pub fn init() -> Result<Self> {
-        let command = Command::parse();
+        let command = Command::init();
 
         if command.logging {
             Logger::init()?;
