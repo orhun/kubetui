@@ -11,7 +11,7 @@ use crossterm::{
 
 use kubetui::{
     action::{update_contents, window_action},
-    command::{configure, Command},
+    command::Command,
     context::{Context, Namespace},
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
@@ -171,7 +171,7 @@ fn main() -> Result<()> {
         default_hook(info);
     }));
 
-    let command = configure();
+    let command = Command::init();
 
     if command.logging {
         Logger::init()?;

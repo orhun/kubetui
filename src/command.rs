@@ -68,6 +68,10 @@ pub struct Command {
 }
 
 impl Command {
+    pub fn init() -> Self {
+        Self::parse()
+    }
+
     pub fn split_mode(&self) -> Direction {
         match self.split_mode {
             Some(d) => match d {
@@ -151,28 +155,6 @@ impl FromStr for DirectionWrapper {
             _ => Err("invalid value"),
         }
     }
-}
-
-pub fn configure() -> Command {
-    Command::parse()
-
-    // let cmd = Command::new("kubetui")
-    //     .arg(
-    //         Arg::new("all-namespaces")
-    //             .short('A')
-    //             .long("all-namespaces")
-    //             .value_name("true|false")
-    //             .value_parser(value_parser!(bool))
-    //             .num_args(0..=1)
-    //             .require_equals(true)
-    //             .default_missing_value("true"),
-    //     )
-    //     .get_matches();
-    //
-    // dbg!(cmd.get_one::<bool>("all-namespaces"));
-    // dbg!(Config::parse());
-    //
-    // std::process::exit(0);
 }
 
 #[cfg(test)]
