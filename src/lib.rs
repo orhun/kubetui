@@ -8,5 +8,5 @@ mod error;
 mod event;
 mod logging;
 pub mod signal;
-mod ui;
+pub mod ui;
 mod window;
