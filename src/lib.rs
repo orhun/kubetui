@@ -3,6 +3,7 @@ mod ansi;
 pub mod app;
 mod clipboard_wrapper;
 mod command;
+mod config;
 mod context;
 mod error;
 mod event;

@@ -52,6 +52,7 @@ macro_rules! disable_raw_mode {
 
 pub struct App {
     command: Command,
+    config: Config,
 }
 
 impl App {
@@ -62,7 +63,9 @@ impl App {
             Logger::init()?;
         }
 
-        Ok(App { command })
+        let config = Config::load_config()?;
+
+        Ok(App { command, config })
     }
 
     pub fn run(self) -> Result<()> {
