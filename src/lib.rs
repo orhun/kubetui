@@ -11,3 +11,4 @@ mod logging;
 pub mod signal;
 pub mod ui;
 mod window;
+mod yaml;

@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -11,12 +12,22 @@ use crate::{
     ui::{
         event::EventResult,
         tab::WidgetChunk,
-        widget::{config::WidgetConfig, Table, Text, WidgetTrait},
+        widget::{
+            config::{WidgetConfig, WidgetTheme},
+            Table, Text, WidgetTrait,
+        },
         Tab, WindowEvent,
     },
 };
 
 use ratatui::layout::{Constraint, Direction, Layout};
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct NetworkTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+}
 
 pub struct NetworkTab {
     pub tab: Tab<'static>,
@@ -27,6 +38,7 @@ pub struct NetworkTabBuilder<'a> {
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
+    theme: NetworkTheme,
 }
 
 impl<'a> NetworkTabBuilder<'a> {
@@ -35,12 +47,14 @@ impl<'a> NetworkTabBuilder<'a> {
         tx: &'a Sender<Event>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
+        theme: NetworkTheme,
     ) -> Self {
         Self {
             title,
             tx,
             clipboard,
             split_mode,
+            theme,
         }
     }
 
@@ -66,7 +80,12 @@ impl<'a> NetworkTabBuilder<'a> {
         let tx = self.tx.clone();
         Table::builder()
             .id(view_id::tab_network_widget_network)
-            .widget_config(&WidgetConfig::builder().title("Network").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Network")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .filtered_key("NAME")
             .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
@@ -130,7 +149,12 @@ impl<'a> NetworkTabBuilder<'a> {
     fn description(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_network_widget_description)
-            .widget_config(&WidgetConfig::builder().title("Description").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Description")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
                 let (index, size) = text.state();
 

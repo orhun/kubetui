@@ -1,11 +1,13 @@
 use crate::{
     action::{update_contents, window_action},
     command::Command,
+    config::Config,
     context::{Context, Namespace},
     event::{input::read_key, kubernetes::KubeWorker, tick::tick, Event},
     logging::Logger,
     ui::WindowEvent,
     window::WindowInit,
+    yaml::ColorizedYaml,
 };
 use anyhow::Result;
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -111,10 +113,18 @@ impl App {
             },
         )?;
 
-        let mut window =
-            WindowInit::new(split_mode, tx_main, context.clone(), namespace.clone()).build();
+        let mut window = WindowInit::new(
+            split_mode,
+            tx_main,
+            context.clone(),
+            namespace.clone(),
+            self.config.theme.window.clone(),
+        )
+        .build();
 
         terminal.clear()?;
+
+        let colorized_yaml = ColorizedYaml::new(self.config.theme.colorized_yaml);
 
         while !is_terminated.load(Ordering::Relaxed) {
             terminal.draw(|f| {
@@ -133,6 +143,7 @@ impl App {
                         ev,
                         &mut context.borrow_mut(),
                         &mut namespace.borrow_mut(),
+                        &colorized_yaml,
                     );
                 }
             }

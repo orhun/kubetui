@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     action::view_id,
@@ -8,13 +9,24 @@ use crate::{
     },
     ui::{
         event::EventResult,
-        widget::{config::WidgetConfig, MultipleSelect, SingleSelect, Widget},
+        widget::{
+            config::{WidgetConfig, WidgetTheme},
+            MultipleSelect, SingleSelect, Widget,
+        },
         Window,
     },
 };
 
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct ContextTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+}
+
 pub struct ContextPopupBuilder<'a> {
     tx: &'a Sender<Event>,
+    theme: ContextTheme,
 }
 
 pub struct ContextPopup {
@@ -24,8 +36,8 @@ pub struct ContextPopup {
 }
 
 impl<'a> ContextPopupBuilder<'a> {
-    pub fn new(tx: &'a Sender<Event>) -> Self {
-        Self { tx }
+    pub fn new(tx: &'a Sender<Event>, theme: ContextTheme) -> Self {
+        Self { tx, theme }
     }
 
     pub fn build(self) -> ContextPopup {
@@ -41,7 +53,12 @@ impl<'a> ContextPopupBuilder<'a> {
 
         MultipleSelect::builder()
             .id(view_id::popup_ns)
-            .widget_config(&WidgetConfig::builder().title("Namespace").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Namespace")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .on_select(move |w: &mut Window, _| {
                 let widget = w
                     .find_widget_mut(view_id::popup_ns)
@@ -76,7 +93,12 @@ impl<'a> ContextPopupBuilder<'a> {
         let tx = self.tx.clone();
         SingleSelect::builder()
             .id(view_id::popup_ctx)
-            .widget_config(&WidgetConfig::builder().title("Context").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Context")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .on_select(move |w: &mut Window, v| {
                 let item = v.item.to_string();
 
@@ -114,7 +136,12 @@ impl<'a> ContextPopupBuilder<'a> {
 
         SingleSelect::builder()
             .id(view_id::popup_single_ns)
-            .widget_config(&WidgetConfig::builder().title("Namespace").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Namespace")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .on_select(move |w: &mut Window, v| {
                 let items = vec![v.item.to_string()];
                 tx.send(NamespaceRequest::Set(items).into())

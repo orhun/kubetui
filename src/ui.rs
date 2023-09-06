@@ -1,8 +1,9 @@
 pub mod event;
 pub mod popup;
 pub mod tab;
+pub mod theme;
 pub mod widget;
-mod window;
+pub mod window;
 
 pub mod util;
 

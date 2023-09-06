@@ -1,9 +1,13 @@
+use serde::{Deserialize, Serialize};
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
     action::view_id,
     ansi::{AnsiEscapeSequence, TextParser},
-    ui::widget::{config::WidgetConfig, Text, Widget},
+    ui::widget::{
+        config::{WidgetConfig, WidgetTheme},
+        Text, Widget,
+    },
 };
 
 const LEFT_HELP_TEXT: &[HelpBlock] = &[
@@ -317,17 +321,29 @@ fn generate() -> Vec<String> {
         .collect()
 }
 
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct HelpTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+}
+
 #[derive(Debug)]
 pub struct HelpPopup {
     pub content: Widget<'static>,
 }
 
 impl HelpPopup {
-    pub fn new() -> Self {
+    pub fn new(theme: HelpTheme) -> Self {
         Self {
             content: Text::builder()
                 .id(view_id::popup_help)
-                .widget_config(&WidgetConfig::builder().title("Help").build())
+                .widget_config(
+                    &WidgetConfig::builder()
+                        .title("Help")
+                        .theme(theme.widget.clone())
+                        .build(),
+                )
                 .items(generate())
                 .build()
                 .into(),

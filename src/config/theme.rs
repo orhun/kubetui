@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{window::ViewTheme, yaml::ColorizedYamlTheme};
+
 /// ```yaml`
 /// theme:
 ///   tab:
@@ -28,4 +30,9 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(default)]
-pub struct Theme {}
+pub struct Theme {
+    #[serde(flatten)]
+    pub window: ViewTheme,
+
+    pub colorized_yaml: ColorizedYamlTheme,
+}

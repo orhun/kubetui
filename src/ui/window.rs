@@ -11,6 +11,7 @@ use ratatui::{
     Frame,
 };
 
+use serde::{Deserialize, Serialize};
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
@@ -21,6 +22,7 @@ use crate::{
 use super::{
     event::{EventResult, InnerCallback},
     popup::Popup,
+    theme::UIStyle,
     util::{key_event_to_code, MousePosition, RectContainsPoint},
     widget::{Widget, WidgetTrait},
     Tab,
@@ -41,6 +43,49 @@ pub struct Window<'a> {
     header: Option<Header<'a>>,
     layout_index: WindowLayoutIndex,
     last_known_size: Rect,
+    theme: WindowTheme,
+}
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct WindowTheme {
+    pub tab: TabTheme,
+    pub header: UIStyle,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct TabTheme {
+    pub base: UIStyle,
+    pub active: UIStyle,
+    pub mouse_over: UIStyle,
+}
+
+impl Default for TabTheme {
+    fn default() -> Self {
+        Self {
+            base: UIStyle::default(),
+            active: UIStyle {
+                fg: None,
+                bg: None,
+                modifier: Some(Modifier::REVERSED),
+            },
+            mouse_over: UIStyle {
+                fg: Some(Color::DarkGray),
+                bg: None,
+                modifier: Some(Modifier::REVERSED),
+            },
+        }
+    }
+}
+
+impl TabTheme {
+    pub fn active_style(&self) -> Style {
+        self.active.to_style()
+    }
+    pub fn mouse_over_style(&self) -> Style {
+        self.mouse_over.to_style()
+    }
 }
 
 #[derive(Default)]
@@ -100,6 +145,7 @@ pub struct WindowBuilder<'a> {
     callbacks: Vec<(UserEvent, InnerCallback)>,
     popups: Vec<Popup<'a>>,
     header: Option<Header<'a>>,
+    theme: WindowTheme,
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -123,6 +169,11 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn header(mut self, header: Header<'a>) -> Self {
         self.header = Some(header);
+        self
+    }
+
+    pub fn theme(mut self, theme: WindowTheme) -> Self {
+        self.theme = theme;
         self
     }
 
@@ -166,6 +217,7 @@ impl<'a> WindowBuilder<'a> {
             callbacks: self.callbacks,
             popups: self.popups,
             header: self.header,
+            theme: self.theme,
             layout_index,
             ..Default::default()
         }
@@ -207,9 +259,7 @@ impl<'a> Window<'a> {
                 {
                     Line::from(Span::styled(
                         Self::tab_title_format(tab_index, tab.title()),
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::REVERSED),
+                        self.theme.tab.mouse_over_style(),
                     ))
                 } else {
                     Line::from(Self::tab_title_format(tab_index, tab.title()))
@@ -218,9 +268,9 @@ impl<'a> Window<'a> {
             .collect();
 
         Tabs::new(titles)
-            .block(Self::tab_block())
+            .block(self.tab_block())
             .select(self.active_tab_index)
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_style(self.theme.tab.active_style())
     }
 
     pub fn match_callback(&self, ev: UserEvent) -> Option<InnerCallback> {
@@ -289,8 +339,8 @@ impl<'a> Window<'a> {
         format!("{}: {} ", index + 1, title)
     }
 
-    fn tab_block() -> Block<'a> {
-        Block::default().style(Style::default())
+    fn tab_block(&self) -> Block<'a> {
+        Block::default().style(self.theme.tab.base.to_style())
     }
 
     pub fn tab_chunk(&self) -> Rect {
@@ -390,7 +440,10 @@ impl<'a> Window<'a> {
                 HeaderContent::Static(content) => Paragraph::new(content.to_vec()),
                 HeaderContent::Callback(callback) => (callback)(),
             };
-            f.render_widget(w, self.chunks()[self.layout_index.header]);
+            f.render_widget(
+                w.style(self.theme.header.to_style()),
+                self.chunks()[self.layout_index.header],
+            );
         }
     }
 
@@ -523,7 +576,7 @@ impl Window<'_> {
     fn on_tab_area_mouse_event(&mut self, ev: MouseEvent) {
         let pos = ev.position();
 
-        let chunk = Self::tab_block().inner(self.tab_chunk());
+        let chunk = self.tab_block().inner(self.tab_chunk());
         let divider_width = 1;
 
         let mut x = chunk.left();
@@ -556,6 +609,32 @@ impl Window<'_> {
                 .saturating_add(1)
                 .saturating_add(w)
                 .saturating_add(divider_width);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod ui {
+        use super::*;
+        use serde_yaml_0_9 as serde_yaml;
+
+        mod tab_theme {
+            use super::*;
+            use pretty_assertions::assert_eq;
+
+            #[test]
+            fn deserialize_empty() {
+                let actual: TabTheme = serde_yaml::from_str("").unwrap();
+
+                let expected = TabTheme::default();
+
+                println!("{:#?}", expected);
+
+                assert_eq!(actual, expected)
+            }
         }
     }
 }

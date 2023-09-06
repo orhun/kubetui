@@ -1,13 +1,112 @@
 use std::{borrow::Cow, fmt::Display};
 
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Color, Modifier},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders},
 };
+use serde::{Deserialize, Serialize};
+
+use crate::ui::theme::UIStyle;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct WidgetConfigBuilder(WidgetConfig);
+
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BorderTypeDef {
+    Plain,
+    Rounded,
+    Double,
+    Thick,
+}
+
+impl From<BorderTypeDef> for BorderType {
+    fn from(value: BorderTypeDef) -> Self {
+        match value {
+            BorderTypeDef::Plain => BorderType::Plain,
+            BorderTypeDef::Rounded => BorderType::Rounded,
+            BorderTypeDef::Double => BorderType::Double,
+            BorderTypeDef::Thick => BorderType::Thick,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct WidgetBorderStyle {
+    style: Option<UIStyle>,
+    border_style: Option<UIStyle>,
+    title_style: Option<UIStyle>,
+    r#type: Option<BorderTypeDef>,
+}
+
+impl WidgetBorderStyle {
+    fn patch_style<'a>(&self, block: Block<'a>) -> Block<'a> {
+        let mut block = block;
+
+        if let Some(style) = &self.style {
+            block = block.style(style.to_style());
+        }
+
+        if let Some(style) = &self.border_style {
+            block = block.border_style(style.to_style());
+        }
+
+        if let Some(style) = &self.title_style {
+            block = block.title_style(style.to_style());
+        }
+
+        if let Some(ty) = self.r#type {
+            block = block.border_type(ty.into());
+        }
+
+        block
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct WidgetTheme {
+    active: WidgetBorderStyle,
+    inactive: WidgetBorderStyle,
+    mouse_over: WidgetBorderStyle,
+}
+
+impl Default for WidgetTheme {
+    fn default() -> Self {
+        Self {
+            active: WidgetBorderStyle {
+                title_style: Some(UIStyle {
+                    modifier: Some(Modifier::BOLD),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            inactive: WidgetBorderStyle {
+                title_style: Some(UIStyle {
+                    fg: Some(Color::DarkGray),
+                    bg: None,
+                    modifier: Some(Modifier::empty()),
+                }),
+                border_style: Some(UIStyle {
+                    fg: Some(Color::DarkGray),
+                    bg: None,
+                    modifier: Some(Modifier::empty()),
+                }),
+                ..Default::default()
+            },
+            mouse_over: WidgetBorderStyle {
+                border_style: Some(UIStyle {
+                    fg: Some(Color::Gray),
+                    bg: None,
+                    modifier: Some(Modifier::empty()),
+                }),
+                ..Default::default()
+            },
+        }
+    }
+}
 
 /// widgets::Block and Title wrapper
 #[derive(Debug, PartialEq, Clone)]
@@ -16,6 +115,7 @@ pub struct WidgetConfig {
     append_title: Option<Title>,
     block: Block<'static>,
     can_activate: bool,
+    theme: WidgetTheme,
 }
 
 impl Default for WidgetConfig {
@@ -27,6 +127,7 @@ impl Default for WidgetConfig {
                 .border_type(BorderType::Plain)
                 .borders(Borders::ALL),
             can_activate: true,
+            theme: WidgetTheme::default(),
         }
     }
 }
@@ -54,6 +155,11 @@ impl WidgetConfigBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: WidgetTheme) -> Self {
+        self.0.theme = theme;
+        self
+    }
+
     pub fn build(self) -> WidgetConfig {
         self.0
     }
@@ -66,6 +172,10 @@ impl WidgetConfig {
 
     pub fn block(&self) -> &Block {
         &self.block
+    }
+
+    pub fn theme(&self) -> &WidgetTheme {
+        &self.theme
     }
 
     pub fn block_mut(&mut self) -> &mut Block<'static> {
@@ -105,15 +215,15 @@ impl WidgetConfig {
             if is_active {
                 title.insert(0, " + ".into());
 
-                title.iter_mut().for_each(|span| {
-                    span.style = span.style.add_modifier(Modifier::BOLD);
-                });
+                // title.iter_mut().for_each(|span| {
+                //     // span.style = span.style.add_modifier(Modifier::BOLD);
+                // });
             } else {
                 title.insert(0, " ".into());
 
-                title.iter_mut().for_each(|span| {
-                    span.style = span.style.fg(Color::DarkGray);
-                });
+                // title.iter_mut().for_each(|span| {
+                //     // span.style = span.style.fg(Color::DarkGray);
+                // });
             }
         } else {
             title.insert(0, " ".into());
@@ -129,18 +239,14 @@ impl WidgetConfig {
     pub fn render_block(&self, is_active: bool, is_mouse_over: bool) -> Block<'static> {
         let block = if self.can_activate {
             if is_active {
-                self.block.clone()
+                self.theme.active.patch_style(self.block.clone())
             } else if is_mouse_over {
-                self.block
-                    .clone()
-                    .border_style(Style::default().fg(Color::Gray))
+                self.theme.mouse_over.patch_style(self.block.clone())
             } else {
-                self.block
-                    .clone()
-                    .border_style(Style::default().fg(Color::DarkGray))
+                self.theme.inactive.patch_style(self.block.clone())
             }
         } else {
-            self.block.clone()
+            self.theme.active.patch_style(self.block.clone())
         };
 
         let title = self.render_title(is_active);

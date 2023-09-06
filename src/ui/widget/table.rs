@@ -10,6 +10,7 @@ use ratatui::{
     widgets::{Table as TuiTable, TableState},
     Frame,
 };
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
 use filter_form::FilterForm;
@@ -20,12 +21,13 @@ use crate::{
     ui::{
         event::{Callback, EventResult},
         key_event_to_code,
+        theme::UIStyle,
         util::{MousePosition, RectContainsPoint},
         Window,
     },
 };
 
-use self::filter_form::FILTER_HEIGHT;
+use self::{filter_form::FILTER_HEIGHT, item::InnerItemTheme};
 
 use super::{
     config::WidgetConfig, styled_graphemes, Item, RenderTrait, SelectedItem, TableItem, WidgetTrait,
@@ -39,6 +41,13 @@ type InnerCallback = Rc<dyn Fn(&mut Window, &TableItem) -> EventResult>;
 type RenderBlockInjection = Rc<dyn Fn(&Table) -> WidgetConfig>;
 type RenderHighlightInjection = Rc<dyn Fn(Option<&TableItem>) -> Style>;
 
+#[derive(Default, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct TableTheme {
+    #[serde(flatten)]
+    inner_item: InnerItemTheme,
+}
+
 #[derive(Derivative)]
 #[derivative(Debug, Default)]
 pub struct TableBuilder {
@@ -49,6 +58,7 @@ pub struct TableBuilder {
     items: Vec<TableItem>,
     state: TableState,
     filtered_key: String,
+    theme: TableTheme,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -115,6 +125,11 @@ impl TableBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: TableTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
     pub fn build(self) -> Table<'static> {
         let mut table = Table {
             id: self.id,
@@ -125,6 +140,7 @@ impl TableBuilder {
             block_injection: self.block_injection,
             highlight_injection: self.highlight_injection,
             filtered_key: self.filtered_key.clone(),
+            theme: self.theme.clone(),
             ..Default::default()
         };
 
@@ -132,6 +148,7 @@ impl TableBuilder {
             .header(self.header)
             .items(self.items)
             .filtered_key(self.filtered_key)
+            .theme(self.theme.inner_item.clone())
             .build();
 
         table.update_row_bounds();
@@ -198,6 +215,7 @@ pub struct Table<'a> {
     filter_widget: FilterForm,
     filtered_key: String,
     mode: Mode,
+    theme: TableTheme,
     #[derivative(Debug = "ignore")]
     on_select: Option<InnerCallback>,
     #[derivative(Debug = "ignore")]
@@ -235,6 +253,7 @@ impl<'a> Table<'a> {
             .items(rows)
             .filtered_key(self.filtered_key.clone())
             .max_width(self.max_width())
+            .theme(self.theme.inner_item.clone())
             .build();
 
         self.items.update_filter(self.filter_widget.word());
@@ -572,6 +591,7 @@ impl WidgetTrait for Table<'_> {
         self.items = InnerItem::builder()
             .max_width(self.max_width())
             .filtered_key(self.filtered_key.clone())
+            .theme(self.theme.inner_item.clone())
             .build();
 
         self.row_bounds = Vec::default();

@@ -24,6 +24,7 @@ use crate::{
         widget::{Item, LiteralItem, TableItem, WidgetTrait},
         Window, WindowEvent,
     },
+    yaml::ColorizedYaml,
 };
 
 pub mod view_id {
@@ -198,6 +199,7 @@ pub fn update_contents(
     ev: Kube,
     context: &mut Context,
     namespace: &mut Namespace,
+    colorized_yaml: &ColorizedYaml,
 ) {
     match ev {
         Kube::Pod(pods_table) => {
@@ -392,7 +394,6 @@ pub fn update_contents(
                     Ok(list) => {
                         if list.items.is_empty() {
                             window.open_popup(view_id::popup_yaml_return);
-
                         } else {
                             window.open_popup(view_id::popup_yaml_name);
 
@@ -432,6 +433,10 @@ pub fn update_contents(
                     }
                 },
                 Yaml(res) => {
+                    // textウィジェットに色付けする処理を実装するいい方法が思いつかないため一旦ここで色をつける
+                    let res =
+                        res.map(|vec| vec.iter().map(|i| colorized_yaml.colorize(i)).collect());
+
                     update_widget_item_for_vec(window, view_id::tab_yaml_widget_yaml, res);
                 }
             }
@@ -445,6 +450,10 @@ pub fn update_contents(
                     update_widget_item_for_table(window, view_id::tab_network_widget_network, res)
                 }
                 Yaml(res) => {
+                    // textウィジェットに色付けする処理を実装するいい方法が思いつかないため一旦ここで色をつける
+                    let res =
+                        res.map(|vec| vec.iter().map(|i| colorized_yaml.colorize(i)).collect());
+
                     update_widget_item_for_vec(
                         window,
                         view_id::tab_network_widget_description,

@@ -600,7 +600,12 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Items").build());
+        .widget_config(
+            &WidgetConfig::builder()
+                .title("Items")
+                .theme(self.widget_config.theme().clone())
+                .build(),
+        );
 
         if let Some(block_injection) = self.block_injection_for_list {
             list_widget_builder = list_widget_builder.block_injection(block_injection);
@@ -611,7 +616,12 @@ impl MultipleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Selected").build());
+        .widget_config(
+            &WidgetConfig::builder()
+                .title("Selected")
+                .theme(self.widget_config.theme().clone())
+                .build(),
+        );
 
         if let Some(block_injection) = self.block_injection_for_selected {
             selected_widget_builder = selected_widget_builder.block_injection(block_injection);
@@ -623,13 +633,20 @@ impl MultipleSelectBuilder {
             ..Default::default()
         };
 
+        let input_widget = InputForm::new(
+            WidgetConfig::builder()
+                .title("Filter")
+                .theme(self.widget_config.theme().clone())
+                .build(),
+        );
+
         MultipleSelect {
             id: self.id,
             widget_config: self.widget_config,
             layout,
             selected_widget,
             block_injection: self.block_injection,
-            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
+            input_widget,
             inner_chunks: Rc::new([]),
             ..Default::default()
         }

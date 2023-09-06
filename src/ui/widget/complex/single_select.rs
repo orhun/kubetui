@@ -429,7 +429,12 @@ impl SingleSelectBuilder {
         } else {
             List::builder()
         }
-        .widget_config(&WidgetConfig::builder().title("Items").build());
+        .widget_config(
+            &WidgetConfig::builder()
+                .title("Items")
+                .theme(self.widget_config.theme().clone())
+                .build(),
+        );
 
         if let Some(block_injection) = self.block_injection_for_list {
             list_widget_builder = list_widget_builder.block_injection(block_injection);
@@ -440,6 +445,13 @@ impl SingleSelectBuilder {
             ..Default::default()
         };
 
+        let input_widget = InputForm::new(
+            WidgetConfig::builder()
+                .title("Filter")
+                .theme(self.widget_config.theme().clone())
+                .build(),
+        );
+
         SingleSelect {
             id: self.id,
             widget_config: self.widget_config,
@@ -447,7 +459,7 @@ impl SingleSelectBuilder {
             select_widget,
             callbacks: self.actions,
             block_injection: self.block_injection,
-            input_widget: InputForm::new(WidgetConfig::builder().title("Filter").build()),
+            input_widget,
             ..Default::default()
         }
     }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use figment::{
-    providers::{Format, Serialized, Yaml},
+    providers::{Format, Serialized, YamlExtended},
     Figment,
 };
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,7 @@ impl Config {
         let config_file = base_dir.get_config_file("config.yaml");
         let config = Figment::new()
             .merge(Serialized::defaults(Config::default()))
-            .merge(Yaml::file(config_file))
+            .merge(YamlExtended::file(config_file))
             .extract()?;
 
         dbg!(&config);

@@ -4,7 +4,7 @@ mod event;
 mod help;
 mod list;
 mod network;
-mod pod;
+pub mod pod;
 mod yaml;
 
 use std::{cell::RefCell, rc::Rc};
@@ -12,6 +12,7 @@ use std::{cell::RefCell, rc::Rc};
 use crossbeam::channel::Sender;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{layout::Direction, text::Line, widgets::Paragraph};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     action::view_id,
@@ -21,25 +22,41 @@ use crate::{
         kubernetes::{context_message::ContextRequest, namespace_message::NamespaceRequest},
         Event, UserEvent,
     },
-    ui::{event::EventResult, popup::Popup, Header, Tab, Window, WindowEvent},
+    ui::{event::EventResult, popup::Popup, window::WindowTheme, Header, Tab, Window, WindowEvent},
 };
 
 use self::{
-    config::{ConfigTab, ConfigTabBuilder},
-    context::{ContextPopup, ContextPopupBuilder},
-    event::{EventsTab, EventsTabBuilder},
-    help::HelpPopup,
-    list::{ListTab, ListTabBuilder},
-    network::{NetworkTab, NetworkTabBuilder},
-    pod::{PodTabBuilder, PodsTab},
-    yaml::{YamlTab, YamlTabBuilder},
+    config::{ConfigTab, ConfigTabBuilder, ConfigTheme},
+    context::{ContextPopup, ContextPopupBuilder, ContextTheme},
+    event::{EventTheme, EventsTab, EventsTabBuilder},
+    help::{HelpPopup, HelpTheme},
+    list::{ListTab, ListTabBuilder, ListTheme},
+    network::{NetworkTab, NetworkTabBuilder, NetworkTheme},
+    pod::{PodTabBuilder, PodTheme, PodsTab},
+    yaml::{YamlTab, YamlTabBuilder, YamlTheme},
 };
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct ViewTheme {
+    #[serde(flatten)]
+    pub window: WindowTheme,
+    pub pod: PodTheme,
+    pub config: ConfigTheme,
+    pub network: NetworkTheme,
+    pub event: EventTheme,
+    pub list: ListTheme,
+    pub yaml: YamlTheme,
+    pub context: ContextTheme,
+    pub help: HelpTheme,
+}
 
 pub struct WindowInit {
     split_mode: Direction,
     tx: Sender<Event>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
+    theme: ViewTheme,
 }
 
 impl WindowInit {
@@ -48,12 +65,14 @@ impl WindowInit {
         tx: Sender<Event>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
+        theme: ViewTheme,
     ) -> Self {
         Self {
             split_mode,
             tx,
             context,
             namespaces,
+            theme,
         }
     }
 
@@ -122,45 +141,65 @@ impl WindowInit {
 
         let builder = builder.header(header);
 
+        let builder = builder.theme(self.theme.window);
+
         builder.build()
     }
 
     fn tabs_popups(&self) -> (Vec<Tab<'static>>, Vec<Popup<'static>>) {
         let clipboard = Some(Rc::new(RefCell::new(Clipboard::new())));
 
-        let PodsTab { tab: tab_pods } =
-            PodTabBuilder::new("Pod", &self.tx, &clipboard, self.split_mode.clone()).build();
+        let PodsTab { tab: tab_pods } = PodTabBuilder::new(
+            "Pod",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.theme.pod.clone(),
+        )
+        .build();
 
-        let ConfigTab { tab: tab_configs } =
-            ConfigTabBuilder::new("Config", &self.tx, &clipboard, self.split_mode.clone()).build();
+        let ConfigTab { tab: tab_configs } = ConfigTabBuilder::new(
+            "Config",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.theme.config.clone(),
+        )
+        .build();
 
-        let NetworkTab { tab: tab_network } =
-            NetworkTabBuilder::new("Network", &self.tx, &clipboard, self.split_mode.clone())
-                .build();
+        let NetworkTab { tab: tab_network } = NetworkTabBuilder::new(
+            "Network",
+            &self.tx,
+            &clipboard,
+            self.split_mode,
+            self.theme.network.clone(),
+        )
+        .build();
 
-        let EventsTab { tab: tab_events } = EventsTabBuilder::new("Event", &clipboard).build();
+        let EventsTab { tab: tab_events } =
+            EventsTabBuilder::new("Event", &clipboard, self.theme.event.clone()).build();
 
         let ListTab {
             tab: tab_list,
             popup: popup_list,
-        } = ListTabBuilder::new("List", &self.tx, &clipboard).build();
+        } = ListTabBuilder::new("List", &self.tx, &clipboard, self.theme.list.clone()).build();
 
         let YamlTab {
             tab: tab_yaml,
             popup_kind: popup_yaml_kind,
             popup_name: popup_yaml_name,
             popup_return: popup_yaml_return,
-        } = YamlTabBuilder::new("Yaml", &self.tx, &clipboard).build();
+        } = YamlTabBuilder::new("Yaml", &self.tx, &clipboard, self.theme.yaml.clone()).build();
 
         let ContextPopup {
             context: popup_context,
             single_namespace: popup_single_namespace,
             multiple_namespaces: popup_multiple_namespaces,
-        } = ContextPopupBuilder::new(&self.tx).build();
+        } = ContextPopupBuilder::new(&self.tx, self.theme.context.clone()).build();
 
         let HelpPopup {
             content: popup_help,
-        } = HelpPopup::new();
+        } = HelpPopup::new(self.theme.help.clone());
 
         // Init Window
         let tabs = vec![

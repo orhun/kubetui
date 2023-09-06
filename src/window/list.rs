@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use serde::{Deserialize, Serialize};
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -10,15 +11,26 @@ use crate::{
     ui::{
         event::EventResult,
         tab::WidgetChunk,
-        widget::{config::WidgetConfig, MultipleSelect, SelectedItem, Text, Widget, WidgetTrait},
+        widget::{
+            config::{WidgetConfig, WidgetTheme},
+            MultipleSelect, SelectedItem, Text, Widget, WidgetTrait,
+        },
         Tab, Window,
     },
 };
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct ListTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+}
 
 pub struct ListTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
+    theme: ListTheme,
 }
 
 pub struct ListTab {
@@ -31,11 +43,13 @@ impl<'a> ListTabBuilder<'a> {
         title: &'static str,
         tx: &'a Sender<Event>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
+        theme: ListTheme,
     ) -> Self {
         Self {
             title,
             tx,
             clipboard,
+            theme,
         }
     }
 
@@ -60,7 +74,12 @@ impl<'a> ListTabBuilder<'a> {
 
         let builder = Text::builder()
             .id(view_id::tab_list_widget_list)
-            .widget_config(&WidgetConfig::builder().title("List").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("List")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
                 let (index, size) = text.state();
 
@@ -85,7 +104,12 @@ impl<'a> ListTabBuilder<'a> {
 
         MultipleSelect::builder()
             .id(view_id::popup_list)
-            .widget_config(&WidgetConfig::builder().title("List").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("List")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .on_select(move |w, _| {
                 let widget = w
                     .find_widget_mut(view_id::popup_list)

@@ -1,6 +1,7 @@
 use crossbeam::channel::Sender;
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout};
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -10,16 +11,29 @@ use crate::{
     ui::{
         event::EventResult,
         tab::WidgetChunk,
-        widget::{config::WidgetConfig, Item, Table, Text, WidgetTrait},
+        widget::{
+            config::{WidgetConfig, WidgetTheme},
+            Item, Table, TableTheme, Text, WidgetTrait,
+        },
         Tab, Window, WindowEvent,
     },
 };
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct PodTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+    #[serde(flatten)]
+    pub table: TableTheme,
+}
 
 pub struct PodTabBuilder<'a> {
     title: &'a str,
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
+    theme: PodTheme,
 }
 
 pub struct PodsTab {
@@ -32,12 +46,14 @@ impl<'a> PodTabBuilder<'a> {
         tx: &'a Sender<Event>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
+        theme: PodTheme,
     ) -> Self {
         PodTabBuilder {
             title,
             tx,
             clipboard,
             split_mode,
+            theme,
         }
     }
 
@@ -67,7 +83,12 @@ impl<'a> PodTabBuilder<'a> {
 
         Table::builder()
             .id(view_id::tab_pod_widget_pod)
-            .widget_config(&WidgetConfig::builder().title("Pod").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Pod")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .filtered_key("NAME")
             .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
@@ -81,30 +102,38 @@ impl<'a> PodTabBuilder<'a> {
                 *widget_config.append_title_mut() =
                     Some(format!(" [{}/{}]", index, table.items().len()).into());
 
-
                 widget_config
-
             })
             .on_select(move |w, v| {
                 w.widget_clear(view_id::tab_pod_widget_log);
 
-                let Some(ref metadata) = v.metadata else {return EventResult::Ignore};
-                let Some(ref namespace) = metadata.get("namespace") else {return EventResult::Ignore};
+                let Some(ref metadata) = v.metadata else {
+                    return EventResult::Ignore;
+                };
+                let Some(ref namespace) = metadata.get("namespace") else {
+                    return EventResult::Ignore;
+                };
 
-                let Some(ref name) = metadata.get("name") else {return EventResult::Ignore};
+                let Some(ref name) = metadata.get("name") else {
+                    return EventResult::Ignore;
+                };
 
-                *(w.find_widget_mut(view_id::tab_pod_widget_log).widget_config_mut().append_title_mut()) = Some((format!(" : {}", name)).into());
+                *(w.find_widget_mut(view_id::tab_pod_widget_log)
+                    .widget_config_mut()
+                    .append_title_mut()) = Some((format!(" : {}", name)).into());
 
                 tx.send(
                     LogStreamMessage::Request {
                         namespace: namespace.to_string(),
                         name: name.to_string(),
                     }
-                    .into(),)
-                    .expect("Failed to send LogStreamMessage::Request");
+                    .into(),
+                )
+                .expect("Failed to send LogStreamMessage::Request");
 
                 EventResult::Window(WindowEvent::Continue)
             })
+            .theme(self.theme.table.clone())
             .build()
     }
 
@@ -120,7 +149,12 @@ impl<'a> PodTabBuilder<'a> {
 
         let builder = Text::builder()
             .id(view_id::tab_pod_widget_log)
-            .widget_config(&WidgetConfig::builder().title("Log").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Log")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .wrap()
             .follow()
             .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {

@@ -1,4 +1,5 @@
 use crossbeam::channel::Sender;
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
@@ -11,17 +12,28 @@ use crate::{
     ui::{
         event::EventResult,
         tab::WidgetChunk,
-        widget::{config::WidgetConfig, Table, Text, WidgetTrait},
+        widget::{
+            config::{WidgetConfig, WidgetTheme},
+            Table, Text, WidgetTrait,
+        },
         Tab, WindowEvent,
     },
 };
 use ratatui::layout::{Constraint, Direction, Layout};
+
+#[derive(Clone, Default, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct ConfigTheme {
+    #[serde(flatten)]
+    pub widget: WidgetTheme,
+}
 
 pub struct ConfigTabBuilder<'a> {
     title: &'static str,
     tx: &'a Sender<Event>,
     clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
     split_mode: Direction,
+    theme: ConfigTheme,
 }
 
 pub struct ConfigTab {
@@ -34,12 +46,14 @@ impl<'a> ConfigTabBuilder<'a> {
         tx: &'a Sender<Event>,
         clipboard: &'a Option<Rc<RefCell<Clipboard>>>,
         split_mode: Direction,
+        theme: ConfigTheme,
     ) -> Self {
         ConfigTabBuilder {
             title,
             tx,
             clipboard,
             split_mode,
+            theme,
         }
     }
 
@@ -58,7 +72,7 @@ impl<'a> ConfigTabBuilder<'a> {
             )
             .layout(
                 Layout::default()
-                    .direction(self.split_mode.clone())
+                    .direction(self.split_mode)
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref()),
             ),
         }
@@ -68,7 +82,12 @@ impl<'a> ConfigTabBuilder<'a> {
         let tx = self.tx.clone();
         Table::builder()
             .id(view_id::tab_config_widget_config)
-            .widget_config(&WidgetConfig::builder().title("Config").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Config")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .filtered_key("NAME")
             .block_injection(|table: &Table| {
                 let index = if let Some(index) = table.state().selected() {
@@ -124,7 +143,12 @@ impl<'a> ConfigTabBuilder<'a> {
     fn raw_data(&self) -> Text {
         let builder = Text::builder()
             .id(view_id::tab_config_widget_raw_data)
-            .widget_config(&WidgetConfig::builder().title("Raw Data").build())
+            .widget_config(
+                &WidgetConfig::builder()
+                    .title("Raw Data")
+                    .theme(self.theme.widget.clone())
+                    .build(),
+            )
             .wrap()
             .block_injection(|text: &Text, is_active: bool, is_mouse_over: bool| {
                 let (index, size) = text.state();

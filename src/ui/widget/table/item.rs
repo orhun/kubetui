@@ -3,12 +3,17 @@ use ratatui::{
     style::{Color, Style},
     widgets::{Cell, Row},
 };
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 use crate::{
     logger,
-    ui::widget::{
-        spans::generate_spans_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line, TableItem,
+    ui::{
+        theme::UIStyle,
+        widget::{
+            spans::generate_spans_lines, styled_graphemes::StyledGraphemes, wrap::wrap_line,
+            TableItem,
+        },
     },
 };
 
@@ -17,12 +22,33 @@ use super::COLUMN_SPACING;
 const HEADER_BOTTOM_MARGIN: u16 = 1;
 const ITEM_BOTTOM_MARGIN: u16 = 1;
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct InnerItemTheme {
+    header: UIStyle,
+    item: UIStyle,
+}
+
+impl Default for InnerItemTheme {
+    fn default() -> Self {
+        Self {
+            header: UIStyle {
+                fg: Some(Color::DarkGray),
+                bg: None,
+                modifier: None,
+            },
+            item: UIStyle::default(),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct InnerItemBuilder {
     header: Vec<String>,
     items: Vec<TableItem>,
     max_width: usize,
     filtered_key: String,
+    theme: InnerItemTheme,
 }
 
 impl InnerItemBuilder {
@@ -46,12 +72,18 @@ impl InnerItemBuilder {
         self
     }
 
+    pub fn theme(mut self, theme: InnerItemTheme) -> Self {
+        self.theme = theme;
+        self
+    }
+
     pub fn build(self) -> InnerItem<'static> {
         let mut inner_item = InnerItem {
-            header: Header::new(self.header),
+            header: Header::new(self.header, self.theme.header.to_style()),
             original_items: self.items.clone(),
             filtered_items: self.items,
             filtered_key: self.filtered_key,
+            theme: self.theme,
             ..Default::default()
         };
 
@@ -79,6 +111,7 @@ pub struct InnerItem<'a> {
     max_width: usize,
     filtered_key: String,
     filtered_word: String,
+    theme: InnerItemTheme,
 }
 
 impl<'a> InnerItem<'a> {
@@ -246,11 +279,13 @@ pub struct Header<'a> {
 }
 
 impl Header<'_> {
-    fn new(header: Vec<String>) -> Self {
-        let rendered = Row::new(header.iter().cloned().map(|h| {
-            Cell::from(h.styled_graphemes_symbols().concat())
-                .style(Style::default().fg(Color::DarkGray))
-        }))
+    fn new(header: Vec<String>, style: Style) -> Self {
+        let rendered = Row::new(
+            header
+                .iter()
+                .cloned()
+                .map(|h| Cell::from(h.styled_graphemes_symbols().concat()).style(style)),
+        )
         .bottom_margin(HEADER_BOTTOM_MARGIN);
 
         Self {
