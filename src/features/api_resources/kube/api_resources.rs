@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
+use std::{fmt::Display, hash::Hash, ops::Deref, sync::Arc, time};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -27,14 +27,16 @@ use crate::{
 
 pub type SharedApiResources = Arc<RwLock<ApiResources>>;
 
+/// kubectl api-resources の結果を保持
+/// Network一覧機能のために順番が重要なためVecで保持
 #[derive(Debug, Default, Clone)]
 pub struct ApiResources {
-    inner: BTreeSet<ApiResource>,
+    inner: Vec<ApiResource>,
 }
 
 impl ApiResources {
     pub fn to_vec(&self) -> Vec<ApiResource> {
-        self.inner.clone().into_iter().collect()
+        self.inner.clone()
     }
 
     /// SharedApiResourcesを生成
@@ -44,16 +46,18 @@ impl ApiResources {
 }
 
 impl Deref for ApiResources {
-    type Target = BTreeSet<ApiResource>;
+    type Target = Vec<ApiResource>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<BTreeSet<ApiResource>> for ApiResources {
-    fn from(value: BTreeSet<ApiResource>) -> Self {
-        Self { inner: value }
+impl<T: Into<Vec<ApiResource>>> From<T> for ApiResources {
+    fn from(value: T) -> Self {
+        Self {
+            inner: value.into(),
+        }
     }
 }
 
@@ -110,6 +114,13 @@ impl ApiResource {
         match self {
             Self::Apis { group, version, .. } => format!("apis/{}/{}", group, version),
             Self::Api { version, .. } => format!("api/{}", version),
+        }
+    }
+
+    pub fn group(&self) -> &str {
+        match self {
+            Self::Apis { group, .. } => group,
+            Self::Api { .. } => "",
         }
     }
 
@@ -322,7 +333,7 @@ impl<'a> FetchApiResources<'a> {
         let job =
             try_join_all(group_versions.iter().map(|gv| self.fetch_api_resources(gv))).await?;
 
-        Ok(job.into_iter().flatten().collect::<BTreeSet<_>>().into())
+        Ok(job.into_iter().flatten().collect::<Vec<_>>().into())
     }
 
     async fn fetch_api_versions(&self) -> Result<Vec<GroupVersion>> {

@@ -3,11 +3,14 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 use kube::{Api, Client, ResourceExt};
 use serde::{Deserialize, Serialize};
 
-use crate::kube::{
-    apis::networking::gateway::v1::{
-        Gateway, HTTPRoute, HTTPRouteSpec, HTTPRouteStatus, ParentReference, RouteParentStatus,
+use crate::{
+    features::api_resources::kube::{ApiResource, ApiResources, SharedApiResources},
+    kube::{
+        apis::networking::gateway::v1::{
+            Gateway, HTTPRoute, HTTPRouteSpec, HTTPRouteStatus, ParentReference, RouteParentStatus,
+        },
+        KubeClientRequest,
     },
-    KubeClientRequest,
 };
 
 use super::{Fetch, FetchedData};
@@ -26,7 +29,7 @@ impl<'a, C> Fetch<'a, C> for HTTPRouteDescriptionWorker<'a, C>
 where
     C: KubeClientRequest,
 {
-    fn new(client: &'a C, namespace: String, name: String) -> Self {
+    fn new(client: &'a C, namespace: String, name: String, _: SharedApiResources) -> Self {
         Self {
             client,
             namespace,
@@ -175,3 +178,113 @@ fn fetch_gateways(client: &Client, http_route: &HTTPRoute) -> Result<Vec<Gateway
 fn fetch_backends() -> () {}
 
 fn fetch_pods() -> () {}
+
+// fn compare_parent_ref_section_name(section_name: Option<&str>, gateway: &Gateway) -> bool {
+//     section_name.unwrap_or(gateway.name_any().as_str()) == gateway.name_any()
+// }
+
+/// groupとkindが一致するAPIリソースを取得する
+///   * 一致するリソースが複数ある場合は、preferredVersionを優先して取得する
+///   * preferredVersionがない場合は、最初に見つかったリソースを取得する
+///   * 一致するリソースがない場合はNoneを返す
+fn find_api_resource<'a>(
+    api_resources: &'a ApiResources,
+    group: &str,
+    kind: &str,
+) -> Option<&'a ApiResource> {
+    let mut apis_for_find = api_resources
+        .iter()
+        .filter(|api| api.group() == group && api.name() == kind);
+
+    let mut apis_for_first = apis_for_find.clone();
+
+    if let Some(api) = apis_for_find.find(|api| api.is_preferred_version()) {
+        Some(api)
+    } else {
+        apis_for_first.next()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod find_api_resource {
+        use super::*;
+
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn with_preferred_version() {
+            let api_resources = ApiResources::from([
+                ApiResource::Apis {
+                    group: "group1".to_string(),
+                    name: "kind1".to_string(),
+                    version: "v1".to_string(),
+                    preferred_version: false,
+                    namespaced: true,
+                },
+                ApiResource::Apis {
+                    group: "group1".to_string(),
+                    name: "kind1".to_string(),
+                    version: "v2".to_string(),
+                    preferred_version: true,
+                    namespaced: true,
+                },
+            ]);
+
+            let actual = find_api_resource(&api_resources, "group1", "kind1");
+
+            let expected = ApiResource::Apis {
+                group: "group1".to_string(),
+                name: "kind1".to_string(),
+                version: "v2".to_string(),
+                preferred_version: true,
+                namespaced: true,
+            };
+
+            assert_eq!(actual, Some(&expected));
+        }
+
+        #[test]
+        fn without_preferred_version() {
+            let api_resources = ApiResources::from([
+                ApiResource::Apis {
+                    group: "group1".to_string(),
+                    name: "kind1".to_string(),
+                    version: "v2".to_string(),
+                    preferred_version: false,
+                    namespaced: true,
+                },
+                ApiResource::Apis {
+                    group: "group1".to_string(),
+                    name: "kind1".to_string(),
+                    version: "v1".to_string(),
+                    preferred_version: false,
+                    namespaced: true,
+                },
+            ]);
+
+            let actual = find_api_resource(&api_resources, "group1", "kind1");
+
+            let expected = ApiResource::Apis {
+                group: "group1".to_string(),
+                name: "kind1".to_string(),
+                version: "v2".to_string(),
+                preferred_version: false,
+                namespaced: true,
+            };
+
+            assert_eq!(actual, Some(&expected));
+        }
+
+        #[test]
+        fn no_matching_resources() {
+            let api_resources = ApiResources::default();
+
+            let actual = find_api_resource(&api_resources, "group1", "kind1");
+
+            assert_eq!(actual, None);
+        }
+    }
+}

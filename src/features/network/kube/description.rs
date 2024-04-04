@@ -36,7 +36,13 @@ type FetchedData = Vec<String>;
 
 #[async_trait]
 trait Fetch<'a, C: KubeClientRequest> {
-    fn new(client: &'a C, namespace: String, name: String) -> Self;
+    // TODO: 将来このメソッドはtraitから削除する
+    fn new(
+        client: &'a C,
+        namespace: String,
+        name: String,
+        api_resources: SharedApiResources,
+    ) -> Self;
 
     async fn fetch(&self) -> Result<FetchedData>;
 }
@@ -124,7 +130,12 @@ where
 
         let RequestData { name, namespace } = self.req.data();
 
-        let worker = Worker::new(&self.client, namespace.to_string(), name.to_string());
+        let worker = Worker::new(
+            &self.client,
+            namespace.to_string(),
+            name.to_string(),
+            self.api_resources.clone(),
+        );
 
         while !self
             .is_terminated

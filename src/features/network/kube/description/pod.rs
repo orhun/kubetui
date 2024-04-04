@@ -15,7 +15,7 @@ use super::{
     Fetch, FetchedData, Result,
 };
 
-use crate::kube::KubeClientRequest;
+use crate::{features::api_resources::kube::SharedApiResources, kube::KubeClientRequest};
 
 pub(super) struct PodDescriptionWorker<'a, C>
 where
@@ -28,7 +28,7 @@ where
 
 #[async_trait::async_trait]
 impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
-    fn new(client: &'a C, namespace: String, name: String) -> Self {
+    fn new(client: &'a C, namespace: String, name: String, _: SharedApiResources) -> Self {
         PodDescriptionWorker {
             client,
             namespace,
@@ -116,7 +116,9 @@ impl<'a, C: KubeClientRequest> Fetch<'a, C> for PodDescriptionWorker<'a, C> {
 mod tests {
     use super::*;
 
-    use crate::{kube::mock::MockTestKubeClient, mock_expect};
+    use crate::{
+        features::api_resources::kube::ApiResources, kube::mock::MockTestKubeClient, mock_expect,
+    };
     use indoc::indoc;
     use k8s_openapi::{
         api::{
@@ -481,7 +483,12 @@ mod tests {
             ]
         );
 
-        let worker = PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+        let worker = PodDescriptionWorker::new(
+            &client,
+            "default".to_string(),
+            "test".to_string(),
+            ApiResources::shared(),
+        );
 
         let result = worker.fetch().await;
 
@@ -572,7 +579,12 @@ mod tests {
             ]
         );
 
-        let worker = PodDescriptionWorker::new(&client, "default".to_string(), "test".to_string());
+        let worker = PodDescriptionWorker::new(
+            &client,
+            "default".to_string(),
+            "test".to_string(),
+            ApiResources::shared(),
+        );
 
         let result = worker.fetch().await;
 

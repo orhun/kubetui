@@ -313,11 +313,15 @@ pub fn update_contents(
                         Ok(i) => {
                             let items = i
                                 .into_iter()
-                                .map(|key| {
+                                .enumerate()
+                                .map(|(i, key)| {
                                     let Ok(json) = serde_json::to_string(&key) else {
                                         unreachable!()
                                     };
-                                    let metadata = BTreeMap::from([("key".into(), json)]);
+                                    let metadata = BTreeMap::from([
+                                        ("key".into(), json),
+                                        ("index".into(), i.to_string()),
+                                    ]);
 
                                     let item = if key.is_api() || key.is_preferred_version() {
                                         key.to_string()

@@ -45,6 +45,7 @@ use crate::{
         },
     },
     kube::KubeClient,
+    logger,
     message::Message,
     workers::kube::message::Kube,
 };
@@ -437,7 +438,11 @@ impl Worker for EventController {
                             APIs => {
                                 let api_resources = shared_api_resources.read().await;
 
-                                tx.send(YamlResponse::APIs(Ok(api_resources.to_vec())).into())
+                                let ret = api_resources.to_vec();
+
+                                logger!(info, "APIs: {:#?}", ret);
+
+                                tx.send(YamlResponse::APIs(Ok(ret)).into())
                                     .expect("Failed to send YamlResponse::Apis");
                             }
                             Resource(req) => {
