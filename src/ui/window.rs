@@ -3,7 +3,7 @@ use std::rc::Rc;
 use ratatui::{
     crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::Styled,
     text::{Line, Span},
     widgets::{Block, Paragraph, Tabs},
     Frame,
@@ -11,7 +11,9 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::{define_callback, logger, message::UserEvent, workers::kube::message::Kube};
+use crate::{
+    define_callback, logger, message::UserEvent, theme::TabTheme, workers::kube::message::Kube,
+};
 
 use super::{
     event::{Callback, EventResult},
@@ -26,6 +28,7 @@ define_callback!(pub HeaderCallback, Fn() -> Paragraph<'static>);
 #[derive(Default)]
 pub struct Window<'a> {
     tabs: Vec<Tab<'a>>,
+    tab_theme: TabTheme,
     active_tab_index: usize,
     mouse_over_tab_index: Option<usize>,
     layout: Layout,
@@ -96,6 +99,7 @@ pub struct WindowBuilder<'a> {
     callbacks: Vec<(UserEvent, Callback)>,
     popups: Vec<Popup<'a>>,
     header: Option<Header<'a>>,
+    tab_theme: TabTheme,
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -120,6 +124,11 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn header(mut self, header: Header<'a>) -> Self {
         self.header = Some(header);
+        self
+    }
+
+    pub fn tab_theme(mut self, theme: TabTheme) -> Self {
+        self.tab_theme = theme;
         self
     }
 
@@ -159,6 +168,7 @@ impl<'a> WindowBuilder<'a> {
 
         Window {
             tabs: self.tabs,
+            tab_theme: self.tab_theme,
             layout,
             callbacks: self.callbacks,
             popups: self.popups,
@@ -203,12 +213,8 @@ impl<'a> Window<'a> {
                     .mouse_over_tab_index
                     .is_some_and(|index| index == tab_index && index != self.active_tab_index)
                 {
-                    Line::from(Span::styled(
-                        Self::tab_title_format(tab_index, tab.title()),
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::REVERSED),
-                    ))
+                    Line::from(Self::tab_title_format(tab_index, tab.title()))
+                        .style(self.tab_theme.mouse_over.to_style())
                 } else {
                     Line::from(Self::tab_title_format(tab_index, tab.title()))
                 }
@@ -216,10 +222,11 @@ impl<'a> Window<'a> {
             .collect();
 
         Tabs::new(titles)
-            .block(Self::tab_block())
+            .block(self.tab_block())
             .select(self.active_tab_index)
+            .divider(self.tab_theme.divider.as_str())
             .padding("", "")
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .highlight_style(self.tab_theme.active.to_style())
     }
 
     pub fn match_callback(&self, ev: UserEvent) -> Option<Callback> {
@@ -301,8 +308,8 @@ impl<'a> Window<'a> {
         format!(" {}: {}  ", index + 1, title)
     }
 
-    fn tab_block() -> Block<'a> {
-        Block::default().style(Style::default())
+    fn tab_block(&self) -> Block<'a> {
+        Block::default().style(self.tab_theme.base.to_style())
     }
 
     pub fn tab_chunk(&self) -> Rect {
@@ -538,7 +545,8 @@ impl Window<'_> {
     fn on_tab_area_mouse_event(&mut self, ev: MouseEvent) {
         let pos = ev.position();
 
-        let chunk = Self::tab_block().inner(self.tab_chunk());
+        let chunk = self.tab_block().inner(self.tab_chunk());
+
         let divider_width = 1;
 
         let mut x = chunk.left();

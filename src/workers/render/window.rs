@@ -48,6 +48,7 @@ use crate::{
     },
     logger,
     message::{Message, UserEvent},
+    theme::Theme,
     ui::{
         event::{CallbackFn, EventResult},
         popup::Popup,
@@ -61,6 +62,7 @@ pub struct WindowInit {
     tx: Sender<Message>,
     context: Rc<RefCell<Context>>,
     namespaces: Rc<RefCell<Namespace>>,
+    theme: Theme,
 }
 
 impl WindowInit {
@@ -69,12 +71,14 @@ impl WindowInit {
         tx: Sender<Message>,
         context: Rc<RefCell<Context>>,
         namespaces: Rc<RefCell<Namespace>>,
+        theme: Theme,
     ) -> Self {
         Self {
             split_mode,
             tx,
             context,
             namespaces,
+            theme,
         }
     }
 
@@ -159,6 +163,8 @@ impl WindowInit {
         });
 
         let builder = builder.header(header);
+
+        let builder = builder.tab_theme(self.theme.tab);
 
         builder.build()
     }

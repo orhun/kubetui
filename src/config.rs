@@ -7,8 +7,11 @@ use figment::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::theme::Theme;
+
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Config {
+    pub theme: Theme,
 }
 
 impl Config {

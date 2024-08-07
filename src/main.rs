@@ -7,6 +7,7 @@ mod features;
 mod kube;
 mod logging;
 mod message;
+mod theme;
 mod ui;
 mod workers;
 

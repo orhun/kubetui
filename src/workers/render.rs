@@ -20,6 +20,7 @@ use crate::{
     logger,
     message::Message,
     panic_set_hook,
+    theme::Theme,
     ui::WindowAction,
 };
 
@@ -33,6 +34,7 @@ pub struct Render {
     rx: Receiver<Message>,
     is_terminated: Arc<AtomicBool>,
     direction: Direction,
+    theme: Theme,
 }
 
 impl Render {
@@ -41,12 +43,14 @@ impl Render {
         rx: Receiver<Message>,
         is_terminated: Arc<AtomicBool>,
         direction: Direction,
+        theme: Theme,
     ) -> Self {
         Self {
             direction,
             tx,
             rx,
             is_terminated,
+            theme,
         }
     }
 
@@ -79,6 +83,7 @@ impl Render {
             self.tx.clone(),
             context.clone(),
             namespace.clone(),
+            self.theme.clone(),
         )
         .build();
 
