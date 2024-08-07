@@ -65,6 +65,10 @@ pub struct Command {
     /// Logging
     #[arg(short = 'l', long, display_order = 1000)]
     pub logging: bool,
+
+    /// Config file path
+    #[arg(long, display_order = 1000)]
+    pub config_file: Option<PathBuf>,
 }
 
 impl Command {
